@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【安全】国密算法sm2、sm4原理 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【安全】国密算法sm2、sm4原理</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2021-04-22</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <ul>
+<li>国密算法：国密算法系列包括SM1，SM2，SM3，SM4，SM7，SM9和ZUC算法，与Fips140-2的相关要求存在一致性，且与国际通用算法标准有对应关系。其中对称密码算法包括SM1，SM4和SM7，非对称密码算法包括SM2，SM9，哈希算法包括SM3。
+<ul>
+<li>SM1算法仅支持硬件实现，目前使用范围逐渐萎缩，目前主要在存量市场有所使用。</li>
+<li>SM2算法对标RSA、ECC算法，算法标准已公开。</li>
+<li>SM3算法对标MD5、SHA-256等哈希算法，算法标准已公开。</li>
+<li>SM4算法对标AES，3DES等对称加密算法，由中国科学院数据与通信保护研究教育中心、国家密码管理局商用密码检测中心在2012年起草和发布，目前算法标准已公开。我国SM4标识加密算法在2021年已作为国际标准ISO/IEC18033-3:2010/AMD1:2021《信息技术安全技术加密算法第3部分:基于分组密码修正案1:SM4》,由国际标准化组织(ISO)正式发布。</li>
+<li>SM7算法针对非接触式IC卡、票务、支付卡类应用，算法标准已公开。</li>
+<li>SM9算法对标国际IBC算法，是基于标识的非对称密码算法体系，该算法于2016年正式发布，在应用的成熟度方面还在不断完善，目前在电子邮件领域有一些实际应用。</li>
+<li>ZUC算法是我国第一个走向国际的国密算法，对标国际的RC4算法，属于对称密码算法中的序列密码算法，目前主要是承担LTE网络中语音流加密的功能。</li>
+</ul>
+</li>
+<li>服务端加密：服务器端加密机制提供静态数据保护，适合于对于文件存储有高安全性或者合规性要求的应用场景。例如，深度学习样本文件的存储、在线协作类文档数据的存储。同一对象在同一时间内仅可以使用一种服务器端加密方式。</li>
+<li>客户端加密：客户端加密是指将文件（Object）发送到对象存储之前在本地进行加密。使用客户端加密功能时，用户需要对主密钥的完整性和正确性负责。若用户因维护不当导致主密钥用错或丢失，从而导致加密数据无法解密所引起的一切损失和后果均需要由用户自行承担。在对加密数据进行复制或者迁移时，用户需要对加密元信息的完整性和正确性负责。因用户维护不当导致加密元信息出错或丢失，从而导致加密数据无法解密所引起的一切损失和后果均由用户自行承担</li>
+</ul>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/about/">
+              <h3 class="post-title">
+                下一篇：关于
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

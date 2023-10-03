@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【操作系统】进程和线程模型 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【操作系统】进程和线程模型</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-05-30</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="概括">概括</h1>
+<p>进程是一个拥有资源和执行任务的单元体。进程拥有的资源包括：内存空间中的代码、数据等；I/O 资源；文件；处理机等。</p>
+<p>线程是一个执行任务的单元体。线程只拥有处理机，线程之间共享进程的资源，如内存、I/O 等</p>
+<h1 id="对比">对比</h1>
+<h2 id="切换开销">切换开销</h2>
+<p>只能发生在内核态。进程的上下文包括虚拟内存、栈、全局变量等用户空间的资源，还包括内核堆栈、寄存器等内核空间的状态。而线程共享进程的虚拟地址空间</p>
+<h2 id="通信方式">通信方式</h2>
+<p>进程间可以通过信号、管道等通信；线程间通过共享内存通信</p>
+<h2 id="健壮性">健壮性</h2>
+<p>多个进程之间不会互相干扰，但单个进程下的线程的出错会终止整个线程（SIGSEGV）</p>
+<h1 id="线程的设计目的">线程的设计目的</h1>
+<p>进程切换是一个开销很大的操作。进程切换的开销主要包括：</p>
+<ul>
+<li>处理机的上下文切换：保存和恢复相关寄存器的内容</li>
+<li>与进程相关的数据结构更改：存储管理有关的记录信息（如页表）、文件管理有关数据（如文件描述符）、进程控制块中的各种队列（如阻塞队列、就绪队列、通信队列）等</li>
+</ul>
+<p>进程的处理机资源和其他资源是一起分配的，进程切换的时候会整体切换，开销很大。如果我们只切换必需的、与处理机相关的信息，就可以有效减少开销。这种情况下，处理机分配的单位和其他的资源分配的单位不能再是一个实体。<br>
+由此引入线程：把一个进程分为多个执行任务的单元体，只为其分配处理机，这些执行任务的单元体就是线程。</p>
+<h1 id="线程的上下文切换过程">线程的上下文切换过程</h1>
+<p>线程有自己的寄存器和栈。当上下文切换的时候，正在运行的线程会将寄存器的状态保存到 TCB（Thread Control Block）里（进程是 PCB，Process Control Block），然后恢复另一个线程的上下文<br>
+<img src="https://black-iron-tavern.vercel.app/post-images/1694078225105.jpeg" alt="" loading="lazy"><br>
+和进程的区别是，线程只需要切换处理机执行的上下文，不会改变地址空间。这意味着：</p>
+<p>1.不需要重新加载页表，切换开销少，提高效率<br>
+2.多个线程共享地址空间，有利有弊</p>
+<h1 id="线程的优缺点">线程的优缺点</h1>
+<h3 id="优点">优点：</h3>
+<p>·提高效率：切换开销小<br>
+·通信方便，共享内存；进程必须通过进程间通信 IPC</p>
+<h3 id="缺点">缺点：</h3>
+<p>·一个线程出错，操作系统会结束整个进程，不够健壮；而多进程就没有这个问题<br>
+·同一进程中的多个线程共享内存，会有并发问题</p>
+<h2 id="共享资源">共享资源：</h2>
+<ul>
+<li>内存空间
+<ul>
+<li>代码</li>
+<li>公共数据（全局变量、静态变量）</li>
+<li>堆</li>
+</ul>
+</li>
+<li>文件描述符</li>
+<li>信号处理器</li>
+<li>进程 ID / 进程组 ID</li>
+</ul>
+<h2 id="独占资源">独占资源</h2>
+<ul>
+<li>线程 ID：在本进程中唯一，进程用来标识此线程</li>
+<li>一组寄存器的值</li>
+<li>栈：每个线程中的函数调用过程是独立的，因此需要有独立的栈</li>
+<li>错误返回码：系统调用或库函数发生错误时，会设置全局变量 errno，各个线程的错误返回码应该是独立的</li>
+<li>信号屏蔽码：每个线程所感兴趣的信号不同，所以线程的信号屏蔽码应该由线程自己管理；但每个线程都共享本进程的信号处理器</li>
+</ul>
+<h2 id="线程的实现方式">线程的实现方式</h2>
+<ul>
+<li>
+<p>linux不区分进程和线程，统一用task_struct来描述调度的一个单元。可以认为，内核中统一执行的是进程，但有些是“普通进程”（对应进程process），有些是“轻量级进程”（对应线程pthread或npthread），linux用fork创建进程、用pthread_create创建线程，其内部都是通过调用clone，并为clone传递不共享/共享公共资源的参数来实现的</p>
+</li>
+<li>
+<p>对于task_struct而言，进程的mm指针指向的区域不同，而线程的mm指针指向相同的区域，这样的设计减少了系统的复杂性。</p>
+</li>
+<li>
+<p>同时，共享内存也引入了并发编程的风险，需要针对业务考虑不同级别的锁机制。</p>
+</li>
+<li>
+<p>具体区别，详见<br>
+https://github.com/labuladong/fucking-algorithm/blob/master/%E6%8A%80%E6%9C%AF/linux%E8%BF%9B%E7%A8%8B.md</p>
+</li>
+</ul>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-xie-shi-fu-zhi-cow-he-ying-yong/">
+              <h3 class="post-title">
+                下一篇：【操作系统】写时复制COW和应用
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

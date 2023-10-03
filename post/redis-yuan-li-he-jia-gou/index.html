@@ -1,0 +1,254 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>redis介绍（一）：数据结构、持久性、一致性 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">redis介绍（一）：数据结构、持久性、一致性</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2021-10-18</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="数据结构">数据结构</h1>
+<p><strong>String</strong></p>
+<ul>
+<li>len 保存字符串的长度，O(1) 时间复杂度查询字符串长度信息</li>
+<li>空间预分配：SDS 被修改后，程序不仅会为 SDS 分配所需要的必须空间，还会分配额外的未使用空间。</li>
+<li>惰性空间释放：当对 SDS 进行缩短操作时，程序并不会回收多余的内存空间，而是使用 free 字段将这些字节数量记录下来不释放，后面如果需要 append 操作，则直接使用 free 中未使用的空间，减少了内存的分配<br>
+<strong>List</strong><br>
+链表，链表插删除较块，查询的效率比较低，常被用做异步队列<br>
+<strong>Set</strong><br>
+Redis 中的 set 是一个无序 Map，由于 Go 中没有 set 结构，所以这里只能类比 Java 中的 HashSet 概念。Redis 的 set 底层也是一个 Map 结构<br>
+<strong>Hash</strong><br>
+Redis 中的字典类型大家不陌生，也许其他语言都有这种结构（python，Java，Go）， hash 的扩容 rehash 过程和 Go 里面的设计颇有类似，也就是维护了两个 hash 结构，如果需要扩容的时候，就把新的数据写入新字典中，然后后端起一个线程来逐步迁移，总体上来说就是采用了空间换时间的思想</li>
+</ul>
+<p><strong>sorted set</strong><br>
+set 特性保证了value 唯一，有自己的打分值，作为排序的依据。底层基于跳表实现：<br>
+跳跃表(skiplist)是一种有序数据结构，它通过在每个节点中维持多个指向其他节点的指针，从而达到快速访问节点的目的。</p>
+<p>跳表在链表的基础上，增加了多层级索引，通过索引位置的几个跳转，实现数据的快速定位</p>
+<h1 id="进程架构">进程架构</h1>
+<ul>
+<li>redis的键值对读写由单线程执行<br>
+因为 Redis 是基于内存的操作，CPU 不是 Redis 的瓶颈，Redis 的瓶颈最有可能是机器内存的大小或者网络带宽。引入多线程反而会引入不必要的切换开销或锁开销。</li>
+<li>redis 网络IO在后期支持多线程执行<br>
+Redis 采用 I/O 多路复用技术，并发处理连接。采用了 epoll + 自己实现的简单的事件框架</li>
+<li>redis 持久化、集群数据同步、异步删除等都是其他线程执行</li>
+</ul>
+<h1 id="全局hash">全局hash</h1>
+<p>Redis 整体就是一个 哈希表来保存所有的键值对，无论数据类型是 5 种的任意一种。哈希表，本质就是一个数组，每个元素被叫做哈希桶</p>
+<h2 id="冲突处理">冲突处理</h2>
+<ul>
+<li>链式</li>
+<li>双hash表<br>
+当链表过长，查找性能将变差，采用rehash策略。<br>
+开始默认使用 「hash 表 1 」保存键值对数据，「hash 表 2」 此刻没有分配空间。当数据越来越多触发 rehash 操作，则执行以下操作：
+<ul>
+<li>给 「hash 表 2 」分配更大的空间;</li>
+<li>将 「hash 表 1 」的数据重新映射拷贝到 「hash 表 2」 中</li>
+<li>释放 「hash 表 1」 的空间</li>
+</ul>
+</li>
+</ul>
+<p>将 hash 表 1 的数据重新映射到 hash 表 2 的过程，用渐进式 rehash，每次处理客户端请求的时候，先从「 hash 表 1」 中第一个索引开始，将这个位置的 所有数据拷贝到 「hash 表 2」 中，就这样将 rehash 分散到多次请求过程中，避免耗时阻塞</p>
+<h1 id="持久化和宕机恢复">持久化和宕机恢复</h1>
+<ul>
+<li><strong>数据持久化使用「RDB 数据快照」</strong>
+<ul>
+<li>将某一刻数据，以文件形式记录下来，写磁盘，称作RDB文件。可通过读取RDB恢复数据</li>
+<li>生成RDB时，使用COW持久化快照：使用glibc函数，fork子进程处理这件事情，父进程继续处理客户端请求，避免阻塞</li>
+<li>父进程写数据时，将产生额外副本，交由bgsave读取，同步到RDB中。解决写阻塞和写同步问题</li>
+</ul>
+</li>
+<li>缺点
+<ul>
+<li>频繁生成 RDB 文件写入磁盘，磁盘压力过大。会出现上一个 RDB 还未执行完，下一个又开始生成，陷入死循环。</li>
+<li>fork 出 bgsave 子进程会阻塞主线程，主线程的内存越大，阻塞时间越长。</li>
+</ul>
+</li>
+<li><strong>AOF 写日志记录内存修改指令</strong>
+<ul>
+<li>
+<p>AOF 日志记录自 Redis 实例创建以来所有修改性指令序列，类似于redolog，恢复 Redis 当前实例的内存数据结构的状态。</p>
+</li>
+<li>
+<p>AOF支持多种写回策略，决定 AOF 的效率和安全性：</p>
+<ul>
+<li>always：同步写回，写指令执行完毕立马将 aof_buf缓冲区中的内容刷写到 AOF 文件。</li>
+<li>everysec：每秒写回，写指令执行完，日志只会写到 AOF 文件缓冲区，每隔一秒就把缓冲区内容同步到磁盘。</li>
+<li>no： 操作系统控制，写执行执行完毕，把日志写到 AOF 文件内存缓冲区，由操作系统决定何时刷写到磁盘</li>
+</ul>
+</li>
+<li>
+<p>AOF 不像 RDB 导致性能损耗，但需要根据日志重新执行指令，过大的文件可能造成性能问题<br>
+等价更新：开辟子进程对内存进行遍历，转换成指令，序列化到一个新AOF 中。再将操作期间发生的增量 AOF 追加到这个新的 AOF 日志文件中，可以减少AOF大小</p>
+</li>
+</ul>
+</li>
+</ul>
+<h1 id="主从同步">主从同步</h1>
+<p>Redis 提供了主从模式，通过主从复制，将数据冗余一份复制到其他 Redis 服务器<br>
+为了保证副本数据的一致性，主从架构采用了读写分离的方式</p>
+<ul>
+<li>读操作：主、从库都可以执行;</li>
+<li>写操作：主库先执行，之后将写操作同步到从库;</li>
+</ul>
+<h2 id="实现">实现</h2>
+<ul>
+<li>第一次主从库全量复制
+<ul>
+<li>建立连接，发送RDB</li>
+<li>记录发送RDB后的新的写数据，在RDB同步后，发给slave</li>
+</ul>
+</li>
+<li>主从库间网络断开重连同步<br>
+环形数组，记录同步的进度</li>
+<li>后续同步<br>
+保持连接，同步命令</li>
+</ul>
+<p>#高可用</p>
+<h2 id="哨兵">哨兵</h2>
+<ul>
+<li>建立monitor机制，负责监控、主从切换、故障恢复</li>
+<li>哨兵有多个节点<br>
+<img src="https://black-iron-tavern.vercel.app/post-images/1694418394710.png" alt="" loading="lazy"></li>
+<li>哨兵需要了解其他哨兵和slave，这一切通过master中介实现</li>
+</ul>
+<h2 id="cluster">cluster</h2>
+<ul>
+<li>Redis 集群是一种分布式数据库方案，集群通过分片(sharding)来进行数据管理(「分治思想」的一种实践)，并提供复制和故障转移功能。</li>
+<li>将数据划分为 16384 的 slots，每个节点负责一部分槽位。槽位的信息存储于每个节点中。</li>
+<li>如图，该集群由三个 Redis 节点组成，每个节点负责整个集群的一部分数据，每个节点负责的数据多少可能不一样<br>
+<img src="https://black-iron-tavern.vercel.app/post-images/1694416257704.png" alt="" loading="lazy"></li>
+</ul>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/an-quan-guo-mi-suan-fa-sm2sm4-yuan-li/">
+              <h3 class="post-title">
+                下一篇：【安全】国密算法sm2、sm4原理
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

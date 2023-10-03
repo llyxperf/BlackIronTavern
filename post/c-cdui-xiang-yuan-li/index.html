@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【C++】对象内存布局 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【C++】对象内存布局</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-10-03</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="概要">概要</h1>
+<p>C++语法复杂度主要来源于各种实体之间的关系，包括</p>
+<ol>
+<li>父类和子类之间的关系</li>
+<li>虚函数和对象的关系</li>
+<li>虚继承关系</li>
+<li>成员类和外部类的关系</li>
+</ol>
+<p>C++中，主要通过内存布局相邻的方法和通过指针的方法来管理其类成员。</p>
+<h1 id="c-类成员管理">C++ 类成员管理</h1>
+<h2 id="操作系统内存布局">操作系统内存布局</h2>
+<p>进程的虚拟地址空间划分成两个部分：内核空间和用户空间。内核空间存放内核代码和数据，用户空间存放用户程序的代码和数据。在 32 位操作系统中，一般将最高的 1G 字节作为内核空间，而将较低的 3G 字节作为用户空间。</p>
+<p>进程运行在内核空间时，处于内核态，此时可以执行任何特权指令。每个进程的内核空间都是相同的，用户代码无法访问内核空间。<br>
+<img src="https://black-iron-tavern.vercel.app/post-images/1696315096383.png" alt="" loading="lazy"><br>
+从上往下依次是：</p>
+<ul>
+<li>内核虚拟内存：所有进程共享内核的代码和全局数据结构，独享与进程相关的数据结构，Linux 会将内核虚拟内存的共享区域映射到被所有进程共享的物理页面上</li>
+<li>用户栈：从高地址向低地址增长，作用有：保存局部变量、传参、返回值、返回地址</li>
+<li>共享库：动态链接阶段</li>
+<li>运行时堆：从低地址向高地址增长，在C++中，通过new和delete进行管理。</li>
+<li>程序代码和数据：从可执行文件中加载（代码段、数据段、BSS 段）
+<ul>
+<li>BSS段(Block started by symbol)：保存未初始化全局变量、静态变量</li>
+<li>data段：已初始化的全局变量、静态变量</li>
+<li>代码段(.text): 存放程序执行代码或只读常量的内存区域，如字符串常量，通常只读。</li>
+</ul>
+</li>
+</ul>
+<h2 id="c成员变量和编译时多态">C++成员变量和编译时多态</h2>
+<pre><code>class Base {
+    public:
+        int member_1;
+        int member_2;
+
+    private:
+        void func1();
+}
+</code></pre>
+<p><img src="https://black-iron-tavern.vercel.app/post-images/1696316220602.png" alt="" loading="lazy"><br>
+如图，普通成员变量根据声明的顺序在对象内存上相邻排布，member_1和member_2起始地址相差刚好一个int长度。</p>
+<ul>
+<li>非虚成员函数不存在于对象内存中，而是在程序.text段之中，类的所有对象共用此函数</li>
+<li>为了为体现出函数属于某个类，编译器会对该函数进行改名（name mangling)，将类名信息加到函数名中，并在成员函数中隐匿地加上本类型指针形参，传递this指针。比如void func1()就可以改为func1_4BaseFv(Base * )，命名规则根据编译器的实现而不尽相同</li>
+<li>这也是C++实现函数重载的方式，根据参数类型不同调用不同名字的函数，不同访问权限的成员均遵循此原则。</li>
+</ul>
+<p>当调用成员函数时，编译器会根据类型信息改写调用方式，如</p>
+<pre><code>Base b;
+b.func1(); //编译器改写为 func1_4BaseFv(&amp;b);
+</code></pre>
+<p>CPU执行时，根据指令地址去.text段中取指令，并解码执行。</p>
+<h2 id="运行时多态">运行时多态</h2>
+<p>对于虚函数，只能运行时根据指针指向的实际类型才能知道调用哪个函数。</p>
+<pre><code>class Base {
+    public:
+        int member_1;
+        int member_2;
+
+        virtual void func2(float arg1);
+    private:
+        void func1();
+}
+</code></pre>
+<figure data-type="image" tabindex="1"><img src="https://black-iron-tavern.vercel.app/post-images/1696317359836.png" alt="" loading="lazy"></figure>
+<p>如图，当类中出现虚函数，编译器行为：</p>
+<ul>
+<li>虚函数依旧被改名后存放于.text区之中</li>
+<li>生成虚函数表vtable，保存在.data段（初始化的全局常量区），被所有实例共享，其中的表项为函数指针。</li>
+<li>类对象中隐匿地增加虚表指针vptr，在构造函数中被指向data段的虚函数表</li>
+<li>虚函数表的第一项为RTTI(Run-Time Type Identification),它显式的存储了该类的类型信息</li>
+<li>在调用虚函数时，编译器自动转换成通过vptr取成员的方式调用函数，在运行时，不同类型的实例对应vptr保存的虚函数表地址不同，进而实现了动态联编。</li>
+</ul>
+<h3 id="继承">继承</h3>
+<pre><code>class Base {
+public:
+    int member_1;
+    int member_2;
+
+    virtual void func2(float arg1);
+private:
+    void func1();
+}
+class Derive:public Base {
+        public:
+            int member_3;
+            int member_4;
+            int member_5;
+            virtual void func2(float arg1) override;
+            virtual void func3(float arg1) ;
+}
+</code></pre>
+<figure data-type="image" tabindex="2"><img src="https://black-iron-tavern.vercel.app/post-images/1696317929460.png" alt="" loading="lazy"></figure>
+<p>如图，编译器行为：</p>
+<ul>
+<li>成员变量的排列为从父类继承的成员到子类的成员。当基类指针指向子类的时候，依旧可以根据基类类型正确访问对应的成员。</li>
+<li>在其父类的后面再添加上自己的内容。vtable存储的是Derive的虚函数，包括重写父类的虚函数，也包括此类新添加的虚函数（如func3)。</li>
+<li>vptr会继承父类的vptr成员，但在构造Derive对象时vptr指向Derive类的vtable。如果有多个父类，vptr可能会有多个。如果父类没有虚函数（即没有vptr）则会在该有虚函数的子类后面加vptr项。</li>
+<li>子类可以选择重写或者不重写父类的虚函数，如果重写，就让vtable中的表项指向子类的函数，否则就依然指向父类</li>
+</ul>
+<p>对于多父类的情况，多个父类成员按照继承声明顺序在内存空间依次排列。这里出现问题是，父类base2的起始地址和Derive的起始地址不同了，将Derive对象地址赋值给Base2指针时编译器会进行地址的调整，否则就会用Base2的方式去访问Base1的内存造成错误了。</p>
+<pre><code>Derive d;
+Base2 * ptr_b = &amp;d;
+cout&lt;&lt; &amp;d == ptr_b; //输出0
+</code></pre>
+<p>对于虚继承的情况，程序中有虚基类指针和虚基类表。虚基类表保存着基类中对应的偏移</p>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/gao-xing-neng-xi-tong-xian-liu-fang-an-er-can-kao-xian-liu-yuan-ma-pou-xi-he-shi-xian/">
+              <h3 class="post-title">
+                下一篇：高性能服务器的限流方案（二）:nginx/guava ratelimiter源码分析
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

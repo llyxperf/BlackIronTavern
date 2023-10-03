@@ -1,0 +1,484 @@
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+        <div class="content-container">
+          
+          
+
+<div class="archives-container">
+  
+    <h2 class="year">2023</h2>
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/c-cdui-xiang-yuan-li/">
+            <h2 class="post-title">
+              【C++】对象内存布局
+              <small>2023-10-03</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/gao-xing-neng-xi-tong-xian-liu-fang-an-er-can-kao-xian-liu-yuan-ma-pou-xi-he-shi-xian/">
+            <h2 class="post-title">
+              高性能服务器的限流方案（二）:nginx/guava ratelimiter源码分析
+              <small>2023-08-24</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/gao-bing-fa-gao-xing-neng-fu-wu-qi-de-xian-liu-fang-an/">
+            <h2 class="post-title">
+              高性能服务器的限流方案（一）：常见限流算法的介绍
+              <small>2023-08-15</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/c17-xin-te-xing/">
+            <h2 class="post-title">
+              C++17 新特性：share_mutex
+              <small>2023-07-28</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/quic-gao-ji-te-xing-lian-jie-qian-yi-qian-xi-yi/">
+            <h2 class="post-title">
+              【QUIC】连接迁移：从理论走到应用（一）
+              <small>2023-07-24</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/gao-xing-neng-dai-li-nginx-ri-zhi-mo-kuai-qian-xi/">
+            <h2 class="post-title">
+              【高性能代理】nginx日志模块浅析
+              <small>2023-06-18</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/gao-bing-fa-nginx-duo-jin-cheng-guan-li/">
+            <h2 class="post-title">
+              【高性能代理】nginx多进程管理
+              <small>2023-06-16</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-jian-tong-xin-fang-shi/">
+            <h2 class="post-title">
+              【操作系统】进程间通信方式
+              <small>2023-06-08</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-he-xian-cheng-mo-xing/">
+            <h2 class="post-title">
+              【操作系统】进程和线程模型
+              <small>2023-05-30</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-xie-shi-fu-zhi-cow-he-ying-yong/">
+            <h2 class="post-title">
+              【操作系统】写时复制COW和应用
+              <small>2023-05-03</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/c-map-de-xian-cheng-an-quan-chu-tan/">
+            <h2 class="post-title">
+              【C++11】unordered_map原理和线程安全性分析
+              <small>2023-02-14</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  
+    <h2 class="year">2022</h2>
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/ji-suan-ji-wang-luo-mpquic-lun-wen-li-jie/">
+            <h2 class="post-title">
+              XLINK (SIGCOMM ‘21) MPQUIC多径论文解读
+              <small>2022-08-04</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  
+    <h2 class="year">2021</h2>
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/zhong-jian-jian-kafka-jie-shao-he-yuan-li/">
+            <h2 class="post-title">
+              【中间件】kafka介绍和原理
+              <small>2021-11-03</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/redis-de-yi-zhi-xing/">
+            <h2 class="post-title">
+              redis介绍（二）：一致性模式和同步策略
+              <small>2021-10-26</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/redis-yuan-li-he-jia-gou/">
+            <h2 class="post-title">
+              redis介绍（一）：数据结构、持久性、一致性
+              <small>2021-10-18</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/an-quan-guo-mi-suan-fa-sm2sm4-yuan-li/">
+            <h2 class="post-title">
+              【安全】国密算法sm2、sm4原理
+              <small>2021-04-22</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+    
+      
+    
+  
+    <h2 class="year">2019</h2>
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/about/">
+            <h2 class="post-title">
+              关于
+              <small>2019-01-25</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+      
+    
+  
+    <h2 class="year">2018</h2>
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+        <article class="post">
+          <a href="https://black-iron-tavern.vercel.app/post/hello-gridea/">
+            <h2 class="post-title">
+              Hello Gridea
+              <small>2018-12-12</small>
+            </h2>
+          </a>
+        </article>
+      
+    
+  
+</div>
+
+
+        </div>
+
+        <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+      </div>
+      <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+    </div>
+  </body>
+</html>

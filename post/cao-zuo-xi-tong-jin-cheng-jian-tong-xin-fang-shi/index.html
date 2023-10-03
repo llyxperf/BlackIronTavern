@@ -1,0 +1,233 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【操作系统】进程间通信方式 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【操作系统】进程间通信方式</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-06-08</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="进程间的通信方式">进程间的通信方式</h1>
+<h1 id="信号-signal">信号 Signal</h1>
+<p>信号是 Linux 系统响应某些条件而产生的一个事件，由操作系统事先定义，接收到该信号的进程可以采取自定义的行为。这是一种“订阅-发布”的模式。</p>
+<p>信号来源分为硬件来源和软件来源。</p>
+<ul>
+<li>硬件来源。如按下 CTRL+C、除 0、非法内存访问等等</li>
+<li>软件来源。如 Kill 命令、Alarm Clock 超时、当 Reader 中止之后又向管道写数据，等等</li>
+</ul>
+<p>一般的信号是都是由一个错误产生的。以除 0 为例。在 x86 机器上 DIV 或 IDIV 指令除数为 0 时，会引发 0 号中断，编号 #DE(Divide Error)，即所谓除零异常。这是一个硬件级中断，会导致陷入内核，执行操作系统预定义在 IDT 中的中断处理程序。而操作系统处理这个异常的方法，就是向进程发送一个信号 SIGFPE。如果进程设置了相应的 signal handler，就执行进程的处理方法。否则，执行操作系统的默认操作，一般这种信号的默认操作是杀死进程。</p>
+<p>同理，溢出、非法内存访问（越界）、非法指令等也都属于硬件中断，由操作系统处理。操作系统会将这些硬件异常包装成“信号”发送给进程。如果进程不处理这几个异常信号，那么默认的行为就是挂掉。</p>
+<p>但是，信号也可以作为进程间通信的一种方式，明确地由一个进程发送给另一个进程</p>
+<h2 id="进程发送信号">进程发送信号</h2>
+<ul>
+<li>操作系统提供发送信号的系统调用</li>
+<li>该系统调用会将信号放到目标进程的<strong>信号队列</strong>中</li>
+<li>如果目标进程未处于执行状态，则该信号就由内核保存起来，直到该进程恢复执行并传递给它为止。如果一个信号被进程设置为阻塞，则该信号的传递被延迟，直到其阻塞被取消时才被传递给进程</li>
+</ul>
+<h2 id="进程接收信号">进程接收信号</h2>
+<ul>
+<li>每个进程有一个信号队列，放其他进程发给它、等待它处理的信号</li>
+<li>进程在执行过程中的特定时刻，检查并处理自己的信号队列。如从系统空间返回到用户空间之前</li>
+<li>发送信号时，必须指明发送目标进程的号码</li>
+</ul>
+<h2 id="用户进程对信号的处理过程">用户进程对信号的处理过程</h2>
+<ul>
+<li>处理信号。定义信号处理函数，当信号发生时，执行相应的处理函数</li>
+<li>忽略信号。当不希望接收到的信号对进程的执行产生影响，而让进程继续执行时，可以忽略该信号，即不对信号进程作任何处理</li>
+<li>不处理也不忽略。执行默认操作，linux 对每种信号都规定了默认操作</li>
+<li>有的信号，用户进程是无法处理也无法忽略的，比如SIGSTOP、SIGKILL 等</li>
+</ul>
+<h1 id="管道-pipe">管道 Pipe</h1>
+<p>管道命令，在 Linux Shell 中经常使用，一般，我们使用管道操作符 | 来表示两个命令之间的数据通信，如<br>
+ps -aux | grep quic<br>
+将 ps -aux 的结果作为 grep 的其中一个输入</p>
+<p>管道操作符的内部实现其实就是 Linux 的管道接口。由管道操作符 | 分割的每个命令是独立的进程，各个进程的标准输出 STDOUT，会作为下一个进程的标准输入 STDIN</p>
+<h2 id="定义">定义</h2>
+<p>管道是一种半双工的通信方式，数据只能单向流动，上游进程往管道中写入数据，下游进程从管道中接收数据。如果想实现双方通信，那么需要建立两个管道。</p>
+<p>管道适合于传输大量信息。管道发送的内容是以字节为单位的，没有格式的字节流。</p>
+<h2 id="创建管道">创建管道</h2>
+<p>通过 pipe() 系统调用来创建并打开一个管道，当最后一个使用它的进程关闭对他的引用时，pipe 将自动撤销。</p>
+<p>通过 pipe() 创建的是匿名管道，只能用于具有亲缘关系的进程之间（父子进程或兄弟进程）。</p>
+<h2 id="管道的实现">管道的实现</h2>
+<p>管道就是一个文件，是一种只存在于内存中的特殊的文件系统。</p>
+<p>在 Linux 中，管道借助了文件系统的 File 结构实现。父进程使用 File 结构保存向管道写入数据的例程地址，子进程保存从管道读出数据的例程地址。这解释了上文所说的：</p>
+<ul>
+<li>单向流动</li>
+<li>只能用于具有亲缘关系的进程之间</li>
+<li></li>
+</ul>
+<p>管道是由内核管理的一个缓冲区，缓冲区被设计成为环形的数据结构，以便管道可以被循环利用（循环队列）</p>
+<h2 id="管道的同步">管道的同步</h2>
+<p>管道是一个具有特定大小的缓冲区</p>
+<ul>
+<li>操作系统会保证读写进程的同步</li>
+<li>下游进程或者上游进程需要等另一方释放锁后才能操作管道。管道就相当于一个文件，同一时刻只能有一个进程访问</li>
+<li>当管道为空时，下游进程读阻塞；当管道满时，上游进程写阻塞</li>
+<li>管道不再被任何进程使用时，自动消失</li>
+</ul>
+<h2 id="信号量-semaphore">信号量 Semaphore</h2>
+<p>信号量是一种特殊的变量，对它的操作都是原子的，有两种操作：V（signal()）和 P（wait()）。V 操作会增加信号量 S 的数值，P 操作会减少它。</p>
+<ul>
+<li>V(S)：如果有其他进程因等待 S 而被挂起，就让它恢复运行，否则 S 加 1</li>
+<li>P(S)：如果 S 为 0，则挂起进程，否则 S 减 1</li>
+</ul>
+<p>如果信号量是一个任意的整数，通常被称为计数信号量（Counting semaphore），或一般信号量（general semaphore）；如果信号量只有二进制的 0 或 1，称为二进制信号量（binary semaphore）。在 Linux 系统中，二进制信号量又称互斥锁（Mutex）。信号量可以用于实现进程或线程的互斥和同步。</p>
+<p>信号量在底层的实现是通过硬件提供的原子指令，如 Test And Set、Compare And Swap 等</p>
+<h1 id="共享内存">共享内存</h1>
+<p>共享内存顾名思义，允许两个或多个进程共享同一段物理内存。不同进程可以将同一段共享内存映射到自己的地址空间，然后像访问正常内存一样访问它。不同进程可以通过向共享内存端读写数据来交换信息。</p>
+<p>一个进程可以通过操作系统的系统调用，创建一块共享内存区；其他进程通过系统调用把这段内存映射到自己的用户地址空间中；之后各个进程向读写正常内存一样，读写共享内存。共享内存区只会驻留在创建它的进程地址空间内。</p>
+<p>共享内存的优点是简单且高效，访问共享内存区域和访问进程独有的内存区域一样快，原因是不需要系统调用，不涉及用户态到内核态的转换，也不需要对数据不必要的复制。</p>
+<p>比如管道和消息队列，需要在内核和用户空间进行四次的数据拷贝（读输入文件、写到管道；读管道、写到输出文件），而共享内存则只拷贝两次：一次从输入文件到共享内存区，另一次从共享内存到输出文件（图示）。此外，消息传递的实现经常采用系统调用，也就经常需要用户态和内核态互相转换；而共享内存只在建立共享内存区域时需要系统调用；一旦建立共享内存，所有访问都可作为常规内存访问，无需借助内核。</p>
+<p>共享内存的** 缺点是存在并发** 问题，有可能出现多个进程修改同一块内存，因此共享内存一般与信号量结合使用。</p>
+<p>Linux 的 2.2.x 内核支持多种共享内存方式，如 mmap() 系统调用，Posix 共享内存，以及系统 V 共享内存。</p>
+<ul>
+<li>mmap() 系统调用的主要作用是将普通文件映射到进程的地址空间，然后可以像访问普通内存一样对文件进行访问，不必再调用 read()，write() 等操作。mmap() 不是专门用来共享内存的，但是多个进程可以通过 mmap() 映射同一个普通文件，来实现共享内存。</li>
+</ul>
+<h1 id="消息队列-message-queue">消息队列 Message Queue</h1>
+<p>消息队列是一个消息的链表，保存在内核中。消息队列中的每个消息都是一个数据块，具有特定的格式。操作系统中可以存在多个消息队列，每个消息队列有唯一的 key，称为消息队列标识符。</p>
+<p>消息队列克服了信号传递信息少、管道只能承载无格式字节流以及缓冲区大小受限等缺点。和信号相比，消息队列能够传递更多的信息。与管道相比，消息队列提供了有格式的数据，但消息队列仍然有大小限制。</p>
+<p>消息队列允许一个或多个进程向它写入与读取消息。消息的发送者和接收者不需要同时与消息队列交互。消息会保存在队列中，直到接收者取回它。也就是说，消息队列是异步的，但这也造成了一个缺点，就是接收者必须轮询消息队列，才能收到最近的消息。</p>
+<p>操作系统提供创建消息队列、取消息、发消息等系统调用。</p>
+<p>操作系统负责读写同步：若消息队列已满，则写消息进程排队等待；若取消息进程没有找到需要的消息，则在等待队列中寻找。</p>
+<p>消息队列和管道相比，相同点在于二者都是通过发送-接收的方式进行通信，并且数据都有最大长度限制。不同点在于消息队列的数据是有格式的，并且取消息进程可以选择接收特定类型的消息，而不是像管道中那样默认全部接收</p>
+<h1 id="套接字-socket">套接字 Socket</h1>
+<ul>
+<li>不同的计算机的进程之间通过 socket 通信，也可用于同一台计算机的不同进程</li>
+<li>需要通信的进程之间首先要各自创建一个 socket，内容包括主机地址与端口号，声明自己接收来自某端口地址的数据</li>
+<li>进程通过 socket 把消息发送到网络层中，网络层通过主机地址将其发到目的主机，目的主机通过端口号发给对应进程</li>
+<li>操作系统提供创建 socket、发送、接收的系统调用，为每个 socket 设置发送缓冲区、接收缓冲区</li>
+</ul>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-he-xian-cheng-mo-xing/">
+              <h3 class="post-title">
+                下一篇：【操作系统】进程和线程模型
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

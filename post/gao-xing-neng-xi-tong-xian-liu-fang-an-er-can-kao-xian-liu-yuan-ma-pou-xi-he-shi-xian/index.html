@@ -1,0 +1,448 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>高性能服务器的限流方案（二）:nginx/guava ratelimiter源码分析 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">高性能服务器的限流方案（二）:nginx/guava ratelimiter源码分析</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-08-24</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="参考目标和策略">参考目标和策略</h1>
+<h2 id="nginx">nginx</h2>
+<ul>
+<li>
+<p>nginx支持请求速率、连接速率、总连接数三个维度的限流，参考：http://nginx.org/en/docs/http/ngx_http_limit_req_module.html#limit_req</p>
+</li>
+<li>
+<p>在nginx的conf文件中：<br>
+rate 表示处理请求的最大速率<br>
+burst 表示超出速率时的排队队列的长度<br>
+nodelay 表示是否允许立即处理burst队列中的请求（qps可能会超出rate的限制）</p>
+</li>
+</ul>
+<h3 id="nginx限流策略">nginx限流策略</h3>
+<p>对于限流算法而言，nginx可以采取普通漏桶算法、带缓冲区的漏桶算法，支持突发流量带缓冲区的漏桶算法三种策略，层层递进。</p>
+<ul>
+<li>
+<p>普通漏桶算法<br>
+对请求均匀速处理，超出速率时拒绝.例如，以下配置将限制对于每个ip地址，最大qps为10:</p>
+<p>http {<br>
+limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;<br>
+server {<br>
+location / {<br>
+limit_req zone=one ;<br>
+...<br>
+}<br>
+}<br>
+}</p>
+</li>
+</ul>
+<p>根据nginx的时间单位，相当于处理速率为 100ms 最多处理5个请求<br>
+<strong>case分析</strong><br>
+rate=5000r/s<br>
+第1ms，收到10个请求，第2ms收到3个请求<br>
+最大qps为5000，相当于 5请求一毫秒<br>
+1ms:处理5个请求，拒绝后5个请求<br>
+2ms：处理3个请求</p>
+<ul>
+<li>
+<p>带缓冲区漏桶算法<br>
+对请求匀速处理，超出速率的请求保存在缓冲区中,通过burst值确定</p>
+<p>limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;<br>
+server {<br>
+location / {<br>
+limit_req zone=mylimit burst=10;<br>
+}<br>
+}</p>
+</li>
+</ul>
+<p>通过burst=10，设定在一个周期内，多余的请求将会被缓存，但最多缓存10个。这些缓存的请求将会按照rate设置的速度，以毫秒级精确的速度慢慢处理<br>
+<strong>case分析</strong>*<br>
+rate=5000r/s<br>
+burst=500<br>
+第1ms内，收到300个请求，第2ms收到300个请求</p>
+<p>最大qps为5000，相当于 5请求一毫秒<br>
+1ms:处理5个请求，剩下295个请求加入到burst缓冲区中<br>
+2ms：处理5个请求，剩下300个请求加入到burst缓冲区中，最后有290+300=590个请求，丢弃最后90个请求。burst缓冲区满</p>
+<p>设置burst参数，允许Nginx缓存多余的请求，起到平滑流量和缓冲作用。然而，如果队列设置的比较大，使得请求排队时间变长，对于尾部用户而言，请求的时间变长了，体验不友好。</p>
+<ul>
+<li>
+<p>支持突发流量的缓冲区漏桶算法</p>
+<ul>
+<li>系统瞬间的QPS可能会超过rate设置的阈值</li>
+<li>nginx提供nodelay参数，允许请求一旦进入burst缓存队列会立即被后台worker处理，这个参数允许server忽略rate的限制，直接处理缓冲队列的请求，系统瞬间的QPS可能会超过rate设置的阈值</li>
+<li>处理掉的请求不会消失，依旧占用缓冲区，并且以rate设定的速率逐个排空<br>
+相当于转变成 生成令牌速率为rate，令牌最大容量为burst的令牌桶</li>
+</ul>
+<p>...<br>
+limit_req_zone$binary_remote_addr zone=mylimit:10m rate=5000rr/s;<br>
+server {<br>
+location / {<br>
+limit_req zone=mylimit burst=500 nodelay;<br>
+}<br>
+}<br>
+...</p>
+</li>
+</ul>
+<p><strong>case分析</strong><br>
+rate=5000r/s 最大qps为5000 相当于1ms最多处理5个请求<br>
+burst=500<br>
+第1ms内，收到300个请求，第2ms收到300个请求</p>
+<p>1ms 处理5个请求，剩下295个请求加入到burst缓冲区中，并被立刻处理。缓冲区中不清空，继续记录295个请求<br>
+2ms 处理5个请求，剩下295个请求中，前205个请求立刻处理，并加入到缓冲区中，缓冲区满，同时拒绝其余请求。<br>
+此时，burst缓冲区满，有500个请求，需要100ms排空。在接下来100ms内，nginx拒绝所有请求。</p>
+<p>因此，nginx处理突发的方式是一种预支思路，面临突发流量时，根据缓冲区长度预支处理对应的请求。burst缓冲区满之后，之后到来的新请求只能等待burst缓冲区开始腾出空间，才能处理。</p>
+<h3 id="nginx限流实现源码原理注释分析">nginx限流实现源码原理注释分析</h3>
+<pre><code>//每个配置指令主要包含两个字段：名称，解析配置的处理方法
+static ngx_command_t  ngx_http_limit_req_commands[] = {
+
+    //一般用法：limit_req_zone $binary_remote_addr zone=one:10m rate=1r/s;
+    //$binary_remote_addr表示远程客户端IP；
+    //zone配置一个存储空间（需要分配空间记录每个客户端的访问速率，超时空间限制使用lru算法淘汰；注意此空间是在共享内存分配的，所有worker进程都能访问）
+    //rate表示限制速率，此例为1qps
+    { ngx_string(&quot;limit_req_zone&quot;),
+    ngx_http_limit_req_zone,
+    },
+
+    //用法：limit_req zone=one burst=5 nodelay;
+    //zone指定使用哪一个共享空间
+    //超出此速率的请求是直接丢弃吗？burst配置用于处理突发流量，表示最大排队请求数目，当客户端请求速率超过限流速率时，请求会排队等待；而超出burst的才会被直接拒绝；
+    //nodelay必须与burst一起使用；此时排队等待的请求会被优先处理；否则假如这些请求依然按照限流速度处理，可能等到服务器处理完成后，客户端早已超时
+    { ngx_string(&quot;limit_req&quot;),
+    ngx_http_limit_req,
+    },
+
+    //当请求被限流时，日志记录级别；用法：limit_req_log_level info | notice | warn | error;
+    { ngx_string(&quot;limit_req_log_level&quot;),
+    ngx_conf_set_enum_slot,
+    },
+
+    //当请求被限流时，给客户端返回的状态码；用法：limit_req_status 503
+    { ngx_string(&quot;limit_req_status&quot;),
+    ngx_conf_set_num_slot,
+    },
+};
+</code></pre>
+<ul>
+<li>ngx_http_limit_req_handler会执行漏桶算法，判断是否超出配置的限流速率，从而进行丢弃或者排队或者通过；</li>
+<li>当用户第一次请求时，会新增一条记录（主要记录访问计数、访问时间），以客户端IP地址（配置$binary_remote_addr）的hash值作为key存储在红黑树中（快速查找），同时存储在LRU队列中（存储空间不够时，淘汰记录，每次都是从尾部删除）；当用户再次请求时，会从红黑树中查找这条记录并更新，同时移动记录到LRU队列首部；</li>
+</ul>
+<h4 id="数据结构">数据结构</h4>
+<p>limit_req_zone配置限流算法所需的存储空间（名称及大小），限流速度，限流变量（客户端IP等），结构如下：</p>
+<pre><code>typedef struct {
+    ngx_http_limit_req_shctx_t  *sh;
+    ngx_slab_pool_t             *shpool;//内存池
+    ngx_uint_t                   rate; //限流速度（qps乘以1000存储）
+    ngx_int_t                    index; //变量索引（nginx提供了一系列变量，用户配置的限流变量索引）
+    ngx_str_t                    var;   //限流变量名称
+    ngx_http_limit_req_node_t   *node;
+} ngx_http_limit_req_ctx_t;
+
+//同时会初始化共享存储空间
+struct ngx_shm_zone_s {
+    void                     *data;  //data指向ngx_http_limit_req_ctx_t结构
+    ngx_shm_t                 shm;   //共享空间
+    ngx_shm_zone_init_pt      init;  //初始化方法函数指针
+    void                     *tag;   //指向ngx_http_limit_req_module结构体
+};
+limit_req配置限流使用的存储空间，排队队列大小，是否紧急处理，结构如下：
+typedef struct {
+    ngx_shm_zone_t              *shm_zone;  //共享存储空间
+    
+    ngx_uint_t                   burst;     //队列大小
+    ngx_uint_t                   nodelay;   //有请求排队时是否紧急处理，与burst配合使用（如果配置，则会紧急处理排队请求，否则依然按照限流速度处理）
+} ngx_http_limit_req_limit_t;
+
+用户访问记录会同时存储在红黑树与LRU队列中，结构如下：
+//记录结构体
+typedef struct {
+    u_char                       color;
+    u_char                       dummy;
+    u_short                      len;    //数据长度
+    ngx_queue_t                  queue; 
+    ngx_msec_t                   last;   //上次访问时间
+    
+    ngx_uint_t                   excess; //当前剩余待处理的请求数（nginx用此实现令牌桶限流算法）
+    ngx_uint_t                   count;  //此类记录请求的总数
+    u_char                       data[1];//数据内容（先按照key（hash值）查找，再比较数据内容是否相等）
+} ngx_http_limit_req_node_t;
+
+//红黑树节点，key为用户配置限流变量的hash值；
+struct ngx_rbtree_node_s {
+    ngx_rbtree_key_t       key;
+    ngx_rbtree_node_t     *left;
+    ngx_rbtree_node_t     *right;
+    ngx_rbtree_node_t     *parent;
+    u_char                 color;
+    u_char                 data;
+};
+
+
+typedef struct {
+    ngx_rbtree_t                  rbtree; //红黑树
+    ngx_rbtree_node_t             sentinel; //NIL节点
+    ngx_queue_t                   queue; //LRU队列
+} ngx_http_limit_req_shctx_t;
+
+//队列只有prev和next指针
+struct ngx_queue_s {
+    ngx_queue_t  *prev;
+    ngx_queue_t  *next;
+};
+</code></pre>
+<h4 id="限流算法">限流算法</h4>
+<ul>
+<li>对于给定的请求记录进行红黑树算法查找，找到对应的记录。</li>
+<li>如果找到记录，将该记录移动到队列头部，计算当前请求与上次请求时间的时间间隔。</li>
+<li>根据限流策略计算待处理请求数，如果待处理请求数超过预设的限流速率，返回NGX_BUSY拒绝请求，否则更新待处理请求数目，并返回NGX_OK。</li>
+<li>如果没有找到记录，尝试通过LRU算法淘汰记录，分配新的存储空间，并为请求记录赋值。</li>
+<li>插入新的请求记录，计算待处理请求数，如果待处理请求数超过预设的限流速率，返回NGX_BUSY拒绝请求，否则更新待处理请求数，返回NGX_AGAIN继续校验下一条限流策略</li>
+</ul>
+<p><strong>代码分析</strong></p>
+<p>//limit，限流策略；hash，记录key的hash值；data，记录key的数据内容；len，记录key的数据长度；ep，待处理请求数目；account，是否是最后一条限流策略</p>
+<pre><code>static ngx_int_t ngx_http_limit_req_lookup(ngx_http_limit_req_limit_t *limit, ngx_uint_t hash, u_char *data, size_t len, ngx_uint_t *ep, ngx_uint_t account)
+{
+    //红黑树查找指定界定
+    while (node != sentinel) {
+
+        if (hash &lt; node-&gt;key) {
+            node = node-&gt;left;
+            continue;
+        }
+
+        if (hash &gt; node-&gt;key) {
+            node = node-&gt;right;
+            continue;
+        }
+
+        //hash值相等，比较数据是否相等
+        lr = (ngx_http_limit_req_node_t *) &amp;node-&gt;color;
+
+        rc = ngx_memn2cmp(data, lr-&gt;data, len, (size_t) lr-&gt;len);
+        //查找到
+        if (rc == 0) {
+            ngx_queue_remove(&amp;lr-&gt;queue);
+            ngx_queue_insert_head(&amp;ctx-&gt;sh-&gt;queue, &amp;lr-&gt;queue); //将记录移动到LRU队列头部
+    
+            ms = (ngx_msec_int_t) (now - lr-&gt;last); //当前时间减去上次访问时间
+
+            excess = lr-&gt;excess - ctx-&gt;rate * ngx_abs(ms) / 1000 + 1000; //待处理请求书-限流速率*时间段+1个请求（速率，请求数等都乘以1000了）
+
+            if (excess &lt; 0) {
+                excess = 0;
+            }
+
+            *ep = excess;
+
+            //待处理数目超过burst（等待队列大小），返回NGX_BUSY拒绝请求（没有配置burst时，值为0）
+            if ((ngx_uint_t) excess &gt; limit-&gt;burst) {
+                return NGX_BUSY;
+            }
+
+            if (account) {  //如果是最后一条限流策略，则更新上次访问时间，待处理请求数目，返回NGX_OK
+                lr-&gt;excess = excess;
+                lr-&gt;last = now;
+                return NGX_OK;
+            }
+            //访问次数递增
+            lr-&gt;count++;
+
+            ctx-&gt;node = lr;
+
+            return NGX_AGAIN; //非最后一条限流策略，返回NGX_AGAIN，继续校验下一条限流策略
+        }
+
+        node = (rc &lt; 0) ? node-&gt;left : node-&gt;right;
+    }
+
+    //假如没有查找到节点，需要新建一条记录
+    *ep = 0;
+    //存储空间大小计算方法参照3.2.1节数据结构
+    size = offsetof(ngx_rbtree_node_t, color)
+            + offsetof(ngx_http_limit_req_node_t, data)
+            + len;
+    //尝试淘汰记录（LRU）
+    ngx_http_limit_req_expire(ctx, 1);
+
+    
+    node = ngx_slab_alloc_locked(ctx-&gt;shpool, size);//分配空间
+    if (node == NULL) {  //空间不足，分配失败
+        ngx_http_limit_req_expire(ctx, 0); //强制淘汰记录
+
+        node = ngx_slab_alloc_locked(ctx-&gt;shpool, size); //分配空间
+        if (node == NULL) { //分配失败，返回NGX_ERROR
+            return NGX_ERROR;
+        }
+    }
+
+    node-&gt;key = hash;  //赋值
+    lr = (ngx_http_limit_req_node_t *) &amp;node-&gt;color;
+    lr-&gt;len = (u_char) len;
+    lr-&gt;excess = 0;
+    ngx_memcpy(lr-&gt;data, data, len);
+
+    ngx_rbtree_insert(&amp;ctx-&gt;sh-&gt;rbtree, node);  //插入记录到红黑树与LRU队列
+    ngx_queue_insert_head(&amp;ctx-&gt;sh-&gt;queue, &amp;lr-&gt;queue);
+
+    if (account) { //如果是最后一条限流策略，则更新上次访问时间，待处理请求数目，返回NGX_OK
+        lr-&gt;last = now;
+        lr-&gt;count = 0;
+        return NGX_OK;
+    }
+
+    lr-&gt;last = 0;
+    lr-&gt;count = 1;
+
+    ctx-&gt;node = lr;
+
+    return NGX_AGAIN;  //非最后一条限流策略，返回NGX_AGAIN，继续校验下一条限流策略
+    
+}
+</code></pre>
+<ul>
+<li>实际上，nginx通过计算excess判断是否需要延时等待。由于代码中的最小单位为1ms，nginx的burst字段实际上限制了1ms内的最大请求数和rate所限制的周期内的缓冲区请求数</li>
+</ul>
+<h1 id="总结">总结</h1>
+<p>结合nginx的实现和项目需求，我们可以得出限流模块的基本定义<br>
+单位时间服务能力：在一个周期内能够处理n个请求<br>
+细粒度的防御能力：在某个细粒度内，不允许超过m个请求经过处理<br>
+一定的burst能力：在某个周期允许高达某个比例的请求涌入，但是需要减少下一个周期的请求大小</p>
+<p>举例：<br>
+单位时间1s，细粒度10ms（可以多级）<br>
+在1s内平稳处理5000个新连接<br>
+10ms内最高只能处理50个新连接<br>
+如果1s内处理了超过10%的新连接，则下一个1s只能处理90%的新连接（可配置）</p>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/gao-bing-fa-gao-xing-neng-fu-wu-qi-de-xian-liu-fang-an/">
+              <h3 class="post-title">
+                下一篇：高性能服务器的限流方案（一）：常见限流算法的介绍
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

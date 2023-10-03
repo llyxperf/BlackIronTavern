@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【高性能代理】nginx日志模块浅析 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【高性能代理】nginx日志模块浅析</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-06-18</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <p>日志对于排查问题至关重要，然而，在多进程架构代理下设计日志模块需要考虑诸多问题：</p>
+<ul>
+<li>写同步问题</li>
+<li>日志切分问题<br>
+下面记录对nginx日志模块的学习</li>
+</ul>
+<h1 id="写同步">写同步</h1>
+<ul>
+<li>多线程而言，由于公用的同一张打开文件表的文件偏移量，只要确保单条写日志是原子操作，便不存在混乱情况</li>
+<li>多进程而言，会有文件偏移量不同步、冲刷缓冲区的问题。对于系统I/O而言，由于缓冲机制是内核级别，需要保证单条写日志是原子操作，并且write对应偏移量是原子操作，就可保证写同步。对后者，可以直接使用O_APPEND解决</li>
+</ul>
+<h1 id="日志切分">日志切分</h1>
+<p>线上nginx服务产生的日志量是巨大的，随着时间的累积，会产生超大文件，对于排查问题非常不方便。合理的定时对日志进行拆分便尤为关键</p>
+<h2 id="文件系统-fd-磁盘的映射关系">文件系统、fd、磁盘的映射关系</h2>
+<p>一个简单的mv无法确保worker会写到新的log上。这是由于</p>
+<ul>
+<li>每个进程维护一个文件描述符表，fd是该表的一个key（index），val指向系统级别的打开文件表的表项</li>
+<li>系统级别，维护一个打开文件表，表项如果指代的是磁盘文件的话，会有一个指向磁盘inode节点的指针，并且这里还会存储文件偏移量等信息</li>
+<li>磁盘文件通过inode进行管理的，inode里会存储着文件的user、group、权限、时间戳、硬链接以及指向数据块的指针<br>
+<img src="https://black-iron-tavern.vercel.app/post-images/1694107221539.png" alt="" loading="lazy"></li>
+</ul>
+<p>进程通过fd写文件，最终通过系统文件表，写到的inode节点对应的数据区域<br>
+而通过mv命令，只是对文件进行了重命名，实际上该fd与inode之间的映射链路并不会受到影响，也就是最终仍然向同一块数据区域写数据，最终表现就是，nginx.log.xxx中日志仍然会源源不断的产生。而随后新建的nginx.log空文件，它对应的是另外的inode节点，和fd毫无关系，因此，nginx.log不会有日志产生</p>
+<p>可以参考使用logrotate检测定时器，完成上述过程</p>
+<h2 id="进程更新fd">进程更新fd</h2>
+<p>因此，需要做的是解决worker中的fd指向问题：</p>
+<ul>
+<li>向master进程发送SIGUSR1信号<br>
+在信号处理器里会置ngx_reopen全局标记为1。当主循环检测到ngx_reopen为1时，会调用ngx_reopen_files函数重新打开文件，生成新的fd，然后关闭旧的fd</li>
+<li>master通过socket channel广播REOPEN指令，worker进程针对NGX_CMD_REOPEN指令也采取和master一样的动作</li>
+</ul>
+<p>对于日志分割场景，重新打开之后的日志数据就可以在新的nginx.log中看到了，而nginx.log.xxx也不再会有数据写入，因为相应的fd都已close</p>
+<h1 id="总结">总结</h1>
+<p>多进程场景下，需要通过</p>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/gao-bing-fa-nginx-duo-jin-cheng-guan-li/">
+              <h3 class="post-title">
+                下一篇：【高性能代理】nginx多进程管理
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

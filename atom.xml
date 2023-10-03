@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://black-iron-tavern.vercel.app</id>
+    <title>Lawreance Liao</title>
+    <updated>2023-10-03T08:36:39.130Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://black-iron-tavern.vercel.app"/>
+    <link rel="self" href="https://black-iron-tavern.vercel.app/atom.xml"/>
+    <subtitle>温故而知新</subtitle>
+    <logo>https://black-iron-tavern.vercel.app/images/avatar.png</logo>
+    <icon>https://black-iron-tavern.vercel.app/favicon.ico</icon>
+    <rights>All rights reserved 2023, Lawreance Liao</rights>
+    <entry>
+        <title type="html"><![CDATA[【C++】对象内存布局]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/c-cdui-xiang-yuan-li/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/c-cdui-xiang-yuan-li/">
+        </link>
+        <updated>2023-10-03T06:21:22.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[高性能服务器的限流方案（二）:nginx/guava ratelimiter源码分析]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/gao-xing-neng-xi-tong-xian-liu-fang-an-er-can-kao-xian-liu-yuan-ma-pou-xi-he-shi-xian/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/gao-xing-neng-xi-tong-xian-liu-fang-an-er-can-kao-xian-liu-yuan-ma-pou-xi-he-shi-xian/">
+        </link>
+        <updated>2023-08-24T15:52:56.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[高性能服务器的限流方案（一）：常见限流算法的介绍]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/gao-bing-fa-gao-xing-neng-fu-wu-qi-de-xian-liu-fang-an/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/gao-bing-fa-gao-xing-neng-fu-wu-qi-de-xian-liu-fang-an/">
+        </link>
+        <updated>2023-08-15T14:53:50.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[C++17 新特性：share_mutex]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/c17-xin-te-xing/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/c17-xin-te-xing/">
+        </link>
+        <updated>2023-07-28T07:40:24.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【QUIC】连接迁移：从理论走到应用（一）]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/quic-gao-ji-te-xing-lian-jie-qian-yi-qian-xi-yi/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/quic-gao-ji-te-xing-lian-jie-qian-yi-qian-xi-yi/">
+        </link>
+        <updated>2023-07-24T05:24:38.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【高性能代理】nginx日志模块浅析]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/gao-xing-neng-dai-li-nginx-ri-zhi-mo-kuai-qian-xi/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/gao-xing-neng-dai-li-nginx-ri-zhi-mo-kuai-qian-xi/">
+        </link>
+        <updated>2023-06-18T13:04:24.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【高性能代理】nginx多进程管理]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/gao-bing-fa-nginx-duo-jin-cheng-guan-li/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/gao-bing-fa-nginx-duo-jin-cheng-guan-li/">
+        </link>
+        <updated>2023-06-16T14:03:40.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【操作系统】进程间通信方式]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-jian-tong-xin-fang-shi/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-jian-tong-xin-fang-shi/">
+        </link>
+        <updated>2023-06-08T09:39:14.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【操作系统】进程和线程模型]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-he-xian-cheng-mo-xing/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-jin-cheng-he-xian-cheng-mo-xing/">
+        </link>
+        <updated>2023-05-30T13:43:39.000Z</updated>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[【操作系统】写时复制COW和应用]]></title>
+        <id>https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-xie-shi-fu-zhi-cow-he-ying-yong/</id>
+        <link href="https://black-iron-tavern.vercel.app/post/cao-zuo-xi-tong-xie-shi-fu-zhi-cow-he-ying-yong/">
+        </link>
+        <updated>2023-05-03T10:03:36.000Z</updated>
+    </entry>
+</feed>

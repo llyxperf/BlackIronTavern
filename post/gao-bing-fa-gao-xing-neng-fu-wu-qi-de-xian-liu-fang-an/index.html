@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>高性能服务器的限流方案（一）：常见限流算法的介绍 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">高性能服务器的限流方案（一）：常见限流算法的介绍</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-08-15</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="前言">前言</h1>
+<p>设计高性能服务器时，难免会面临瞬时超高并发的场景。这时往往可以通过缓存、降级和限流来保护系统。目的均是在保证可用的前提下，尽可能多增加完成的请求数。然而某些场景不能用缓存或降级来解决，如稀缺资源（秒杀、抢购）、写服务（如评论、下单）、频繁的复杂查询（评论的最后几页），导致大量请求能够打到服务端，因而需要直接限制这些场景的并发请求量，目的是保护服务器的可用性</p>
+<p>简而言之，限流通过对并发访问/请求的速率进行限速，当速率达到预设的阈值时则可以拒绝服务。对于Http3而言，由于下层QUIC协议强集成TLS的特性，握手的CPU开销比Http2更高。对于高并发QUIC代理而言，CPU瓶颈之一在于握手阶段的加解密、证书验证等开销，针对握手应设置严格的限流方案，否则高并发新连接及其容易将服务CPU耗尽，导致平均请求响应时间的升高，通过压测也可以证明这一点。</p>
+<h1 id="限流方案">限流方案</h1>
+<h2 id="高并发系统常见的限流途径">高并发系统常见的限流途径</h2>
+<ul>
+<li>限制总并发数（数据库连接池)</li>
+<li>限制瞬时并发数（如nginx的limit_conn模块，用来限制瞬时并发连接数）</li>
+<li>限制时间窗口内的平均速率（nginx的limit_req模块，用来限制每秒的平均速率）</li>
+</ul>
+<p>另外还可以根据网络连接数、网络流量、CPU或内存负载等来限流，具体的限流目的根据服务器服务场景而定</p>
+<h2 id="常见限流算法介绍">常见限流算法介绍</h2>
+<ul>
+<li>
+<p>计数器算法<br>
+思想：按照周期配额，每个周期的请求阈值固定，使用一个支持原子操作的计数器记录请求次数，到达阈值时拒绝所有请求，到达新周期时，计数器清零。</p>
+</li>
+<li>
+<p>优点：实现简单</p>
+</li>
+<li>
+<p>缺点：容易出现临界问题</p>
+</li>
+</ul>
+<p>如图所示，设定周期为1分钟，额度为100的计数器。如下图，在1:00前一刻到达100个请求，1:00计数器被重置，1:00后一刻又到达100个请求，显然计数器不会超过100，所有请求都不会被拦截；<br>
+然而这一时间段内请求数已经达到200，远超100。<br>
+<img src="https://black-iron-tavern.vercel.app/post-images/1694015505078.png" alt="" loading="lazy"></p>
+<ul>
+<li>漏桶算法<br>
+核心思想：添加固定大小的缓存存储客户端请求，以固定处理速率处理请求</li>
+<li>优点
+<ul>
+<li>具有缓冲、平滑限流的作用</li>
+<li>匀速处理客户端请求，有利于保护后端服务稳定</li>
+</ul>
+</li>
+<li>缺点
+<ul>
+<li>处理速度固定无法应对突发情况。同时由于引入缓存，请求突发时会导致请求延时增大。</li>
+<li>需要存储请求数据，引入内存拷贝，增加性能消耗</li>
+</ul>
+</li>
+</ul>
+<figure data-type="image" tabindex="1"><img src="https://black-iron-tavern.vercel.app/post-images/1694015500357.png" alt="" loading="lazy"></figure>
+<ul>
+<li>
+<p>令牌桶算法<br>
+核心思想：在统计意义上，限制流量在一个阈值以下。同时，基于令牌桶中“预留”的令牌，又能比较平稳地处理突发的高流量。需要定速地往桶里生成令牌，请求只有拿到了令牌才能被服务器处理。</p>
+</li>
+<li>
+<p>优点</p>
+<ul>
+<li>由于不限制处理速率，可以有效处理瞬间的突发流量。</li>
+</ul>
+</li>
+<li>
+<p>缺点</p>
+<ul>
+<li>相较其他限流算法实现较复杂</li>
+</ul>
+</li>
+<li>
+<p>漏桶与令牌桶区别</p>
+<ul>
+<li>令牌桶与漏桶的区别在于漏桶限制的是请求被处理的速率，即当有请求的时候，先进入桶中进行排队，按固定的速率流出被处理；</li>
+<li>令牌桶控制的是令牌产生的速率。即当有请求的时候，先从令牌桶中获取令牌，只要能获取到令牌就能立即通过被处理，不限制请求被处理的速度，所以也就可以应对一定程度的突发流量。</li>
+<li>漏桶是牺牲自身的性能保护后端第三方服务的稳定性。</li>
+<li>令牌桶是通过限制请求速率来保护自身的稳定性。<br>
+举例：<br>
+有 100 个请求同时进入。现在假设漏桶的速率是每 10ms 处理一个请求，那么要处理完这 100 个请求需要 1 秒钟，因为每处理完 1 个请求，都需要等待 10ms 才能处理下一个请求。<br>
+如果是令牌桶，假设令牌桶产生令牌的速率也是每 10ms 产生一个，那么 1 秒钟就是产生 100 个令牌。所以，一种极端的情况就是当这 100 个请求进入的时候，桶中正好有 100 个令牌，那么这 100 个请求就能瞬间被处理掉</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/c17-xin-te-xing/">
+              <h3 class="post-title">
+                下一篇：C++17 新特性：share_mutex
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

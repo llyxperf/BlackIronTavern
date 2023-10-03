@@ -1,0 +1,187 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【C++11】unordered_map原理和线程安全性分析 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【C++11】unordered_map原理和线程安全性分析</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-02-14</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="简介">简介</h1>
+<p>unordered_map是c++11正式加入的对hashmap的官方实现。unordered_map中元素是无序的。可以支持O(1)的平均读写性能</p>
+<h1 id="原理">原理</h1>
+<p>unordered_map基于hashtable实现，通过链表解决冲突。</p>
+<h2 id="插入">插入</h2>
+<ul>
+<li>将该键值对中键的值带入设计好的哈希函数，会得到一个哈希值（一个整数，用 H 表示）；</li>
+<li>将 H 和无序容器拥有桶的数量 n 做整除运算（即 H % n），该结果即表示应将此键值对存储到的桶的编号；</li>
+<li>建立一个新节点存储此键值对，同时将该节点链接到相应编号的桶上</li>
+<li>冲突时，直接插入链表，当链表长度过长（如8），解决冲突的方式将变成红黑树
+<ul>
+<li><strong>重新哈希</strong></li>
+<li>为了解决散列函数设计不均，导致的冲突元素变大的情况，unordered_map支持rehash方式。</li>
+<li>负载因子 = 容器存储的总键值对 / 桶数，表示桶的满载程度，越大表示桶内冲突越多。当超过某阈值（如1）将触发rehash，迭代器将失效</li>
+<li>rehash 的过程可能比较耗时，因此需要注意控制 unordered_map 的负载因子和最大负载因子</li>
+</ul>
+</li>
+</ul>
+<p>在C++标准库的unordered_map中，负载因子(load factor)由成员函数load_factor()计算，并返回<br>
+成员函数rehash被用来调整bucket数量，保证每一个bucket的load factor低于或等于unordered_map的最大负载因子(max_load_factor())</p>
+<p>以下接口会检查并（如果需要）调用rehash：</p>
+<pre><code>插入元素的成员函数，例如insert，emplace。
+重置容器大小的成员函数，例如resize，rehash。
+</code></pre>
+<p>在这些函数中， unordered_map会检查操作后的负载因子是否会超过最大负载因子，如果会，函数会先进行rehash操作，然后再进行插入元素或改变容器大小的操作。</p>
+<h1 id="线程安全">线程安全</h1>
+<p>nordered_map 在 C++ 标准库中并不是写线程安全的</p>
+<p>考虑两个线程同时对 unordered_map 进行写操作（比如插入元素）的情况<br>
+std::unordered_map&lt;int, int&gt; map;</p>
+<pre><code>void thread_func() {
+    for (int i = 0; i &lt; 10000; ++i) {
+        map[i] = i;
+    }
+}
+
+int main() {
+    std::thread t1(thread_func);
+    std::thread t2(thread_func);
+    t1.join();
+    t2.join();
+}
+</code></pre>
+<p>当他们对map同时进行插入时，如果触发rehash操作使得迭代器失效，另一方的迭代访问将会导致崩溃。<br>
+对于读而言，是线程安全的</p>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/ji-suan-ji-wang-luo-mpquic-lun-wen-li-jie/">
+              <h3 class="post-title">
+                下一篇：XLINK (SIGCOMM ‘21) MPQUIC多径论文解读
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>

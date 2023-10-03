@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    
+<meta charset="utf-8" >
+
+<title>【操作系统】写时复制COW和应用 | Lawreance Liao</title>
+<meta name="description" content="温故而知新">
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.0/animate.min.css">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://black-iron-tavern.vercel.app/favicon.ico?v=1696322189508">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.10.0/katex.min.css">
+<link rel="stylesheet" href="https://black-iron-tavern.vercel.app/styles/main.css">
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+
+
+
+  </head>
+  <body>
+    <div id="app" class="main">
+      <div class="site-header-container">
+  <div class="site-header">
+    <div class="left">
+      <a href="https://black-iron-tavern.vercel.app">
+        <img class="avatar" src="https://black-iron-tavern.vercel.app/images/avatar.png?v=1696322189508" alt="" width="32px" height="32px">
+      </a>
+      <a href="https://black-iron-tavern.vercel.app">
+        <h1 class="site-title">Lawreance Liao</h1>
+      </a>
+    </div>
+    <div class="right">
+      <transition name="fade">
+        <i class="icon" :class="{ 'icon-close-outline': menuVisible, 'icon-menu-outline': !menuVisible }" @click="menuVisible = !menuVisible"></i>
+      </transition>
+    </div>
+  </div>
+</div>
+
+<transition name="fade">
+  <div class="menu-container" style="display: none;" v-show="menuVisible">
+    <div class="menu-list">
+      
+        
+          <a href="/" class="menu purple-link">
+            首页
+          </a>
+        
+      
+        
+          <a href="/archives" class="menu purple-link">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="menu purple-link">
+            标签
+          </a>
+        
+      
+        
+          <a href="/post/about" class="menu purple-link">
+            关于
+          </a>
+        
+      
+    </div>
+  </div>
+</transition>
+
+
+      <div class="content-container">
+        <div class="post-detail">
+          
+          <h2 class="post-title">【操作系统】写时复制COW和应用</h2>
+          <div class="post-info post-detail-info">
+            <span><i class="icon-calendar-outline"></i> 2023-05-03</span>
+            
+          </div>
+          <div class="post-content" v-pre>
+            <h1 id="简介">简介</h1>
+<p>写时复制（Copy-on-write，COW），有时也称为隐式共享，是一种用于复制场景的资源管理技术。将复制操作推迟到修改时进行：<br>
+COW 将复制操作推迟到第一次写入时进行：在创建一个新副本时，不会立即复制资源，而是共享原始副本的资源；当修改时再创建一个副本，进行写入。</p>
+<ul>
+<li>通过这种方式共享资源，可以显著减少创建副本时的开销，以及节省不必要的资源，如fork的代码段和数据段</li>
+<li>同时，资源修改操作会增加少量开销</li>
+</ul>
+<p>写时复制在进程管理（如fork）、语言机制（如C++ string）中都广泛使用</p>
+<h1 id="应用">应用</h1>
+<h2 id="fork">fork</h2>
+<p>fork创建出的子进程，首先与父进程共享内存空间，包括数据段、代码段、堆栈等。当子进程需要写入时，才执行数据段的复制操作，并进行写入。</p>
+<ul>
+<li>
+<p>fork()之后，kernel把父进程中内存页的权限都设为read-only，将子进程的地址空间指向父进程</p>
+</li>
+<li>
+<p>当某个进程写内存时，CPU硬件检测到内存页read-only的，触发页异常中断（page-fault），陷入kernel的一个中断例程。中断例程中，kernel就会把触发的<strong>异常的页</strong>复制一份，于是父子进程各自持有独立的一份</p>
+</li>
+<li>
+<p>如果在fork()之后，父子进程都还需要继续进行写操作，那么会产生大量的分页错误(页异常中断page-fault)</p>
+</li>
+</ul>
+<h2 id="string-gcc-4x-c11前">string( gcc 4.x &amp;&amp; c11前)</h2>
+<p>string中，保存refCount和char *指针，当拷贝复制时，新str的char *不会copy，而是指向源str，但refCount增加。当需要写时，根据refCount判断是否需要申请新的空间</p>
+<p>在新版本中已经移除，因为多线程环境下，[]操作符可能会造成野指针问题，见：</p>
+<pre><code>std::string s(&quot;str&quot;); 
+const char* p = s.data(); 
+{
+    std::string s2(s); // COW 机制起作用 (void) 
+    s[0]; // [] 运算符会导致 s 需要复制一份新的数据 
+    
+    // s2 析构掉，原先的内存空间被释放
+} 
+std::cout &lt;&lt; *p &lt;&lt; '\n';
+</code></pre>
+
+          </div>
+        </div>
+
+        
+          <div class="next-post">
+            <a class="purple-link" href="https://black-iron-tavern.vercel.app/post/c-map-de-xian-cheng-an-quan-chu-tan/">
+              <h3 class="post-title">
+                下一篇：【C++11】unordered_map原理和线程安全性分析
+              </h3>
+            </a>
+          </div>
+          
+      </div>
+
+      
+
+      <div class="site-footer">
+  <div class="slogan">温故而知新</div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+  Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://black-iron-tavern.vercel.app/atom.xml" target="_blank">RSS</a>
+</div>
+
+
+    </div>
+    <script type="application/javascript">
+
+hljs.initHighlightingOnLoad()
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+
+
+  </body>
+</html>
